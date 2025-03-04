@@ -15,6 +15,7 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt
 import openpyxl
+from PyQt5.QtGui import QIcon
 
 EXCEL_FILE = "Book.xlsx"
 BULLETINS_FOLDER = "Bulletins"
@@ -92,7 +93,8 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("View Student Grades")
-        self.setGeometry(100, 100, 600, 400)
+        self.setGeometry(100, 100, 1920, 1080)
+        self.setWindowIcon(QIcon('icon.png'))
 
         # Main widget and layout
         self.central_widget = QWidget()
