@@ -42,7 +42,7 @@ def fetch_grades(matricule):
         # Fetch the name and grades
         name = ws.cell(row=matricule_row, column=2).value  # Assuming name is in column B
         grades = {}
-        subjects = ["Maths", "Sciences", "Histoire", "Geo", "ECM", "Francais", "Anglais"]
+        subjects = ["Maths", "Sciences", "Histoire", "Geo", "Francais"]
         for col_num, subject in enumerate(subjects, start=3):  # Grades start from column C
             grade = ws.cell(row=matricule_row, column=col_num).value
             grades[subject] = grade
@@ -60,8 +60,8 @@ def fetch_grades(matricule):
         return None
 
 
-def create_new_excel_file():
-    """Create a new Excel file in the Bulletins folder."""
+def create_new_excel_file(matricule):
+    """Create a new Excel file in the Bulletins folder and add student data."""
     try:
         # Create the Bulletins folder if it doesn't exist
         if not os.path.exists(BULLETINS_FOLDER):
@@ -77,9 +77,32 @@ def create_new_excel_file():
         ws.title = "Grades"
 
         # Add headers
-        headers = ["Matricule", "Name", "Maths", "Sciences", "Histoire", "Geo", "ECM", "Francais", "Anglais"]
+        headers = ["Matricule", "Name", "Maths", "Sciences", "Histoire", "Geo", "Francais", "Moyenne"]
         for col_num, header in enumerate(headers, start=1):
             ws.cell(row=1, column=col_num, value=header)
+
+        # If a matricule is provided, fetch and add the student's data
+        if matricule:
+            student_data = fetch_grades(matricule)
+            if student_data:
+                # Load the main workbook
+                main_wb = openpyxl.load_workbook(EXCEL_FILE)
+                main_ws = main_wb.active
+                # Find the row for the given matricule in column A
+                matricule_row = None
+                for row in main_ws.iter_rows(min_col=1, max_col=1):  # Search only in column A
+                    cell_value = row[0].value
+                    # Convert both the cell value and matricule to strings for comparison
+                    if str(cell_value) == str(matricule):
+                        matricule_row = row[0].row
+                        break
+                if matricule_row:
+                    # Copy the data from the main workbook to the new workbook
+                    ws.cell(row=2, column=1, value=matricule)
+                    ws.cell(row=2, column=2, value=student_data["name"])
+                    for col_num, subject in enumerate(["Maths", "Sciences", "Histoire", "Geo", "Francais"], start=3):
+                        ws.cell(row=2, column=col_num, value=student_data["grades"][subject])
+                    ws.cell(row=2, column=8, value=student_data["grades"]["Moyenne"])
 
         # Save the workbook
         wb.save(file_path)
@@ -95,6 +118,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("View Student Grades")
         self.setGeometry(100, 100, 1920, 1080)
         self.setWindowIcon(QIcon('icon.png'))
+        self.current_matricule = None  # Store the currently displayed matricule
 
         # Main widget and layout
         self.central_widget = QWidget()
@@ -144,6 +168,7 @@ class MainWindow(QMainWindow):
         else:
             self.result_label.setText(f"Grades for Matricule: {matricule}, Name: {data['name']}")
             self.result_label.setStyleSheet("color: green;")
+            self.current_matricule = matricule  # Store the current matricule
 
             # Populate the table with grades
             self.grades_table.setRowCount(len(data["grades"]))
@@ -152,12 +177,15 @@ class MainWindow(QMainWindow):
                 self.grades_table.setItem(row, 1, QTableWidgetItem(str(grade)))
 
     def create_excel_file(self):
-        """Create a new Excel file and show a success message."""
-        file_path = create_new_excel_file()
-        if file_path:
-            QMessageBox.information(self, "Success", f"New Excel file created at:\n{file_path}")
+        """Create a new Excel file using the currently displayed matricule."""
+        if self.current_matricule:
+            file_path = create_new_excel_file(self.current_matricule)
+            if file_path:
+                QMessageBox.information(self, "Success", f"New Excel file created at:\n{file_path}")
+            else:
+                QMessageBox.critical(self, "Error", "Failed to create a new Excel file.")
         else:
-            QMessageBox.critical(self, "Error", "Failed to create a new Excel file.")
+            QMessageBox.warning(self, "Warning", "No matricule is currently displayed. Please view grades first.")
 
 
 if __name__ == "__main__":
